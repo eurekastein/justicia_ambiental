@@ -73,3 +73,27 @@ FROM   (SELECT * FROM pgr_dijkstraCost(
 ) as sub
 ORDER  BY start_vid, agg_cost asc;
 
+-- EN CASO DE QUE LA LÍNEA SEA MULTILINESTRING
+
+-- creas una nueva tabla con una geometría extra de tipo linestring
+create table calles700mrd_multi as
+SELECT a.*, (ST_Dump(geom)).geom As the_geom FROM calles700mrd a
+-- borras la antigua geometría
+alter table calles700mrd_multi drop column geom;
+--- verificas que en efecto sea linestring
+select st_astext(the_geom) from calles700mrd_multi 
+--- reproyectas
+  ALTER TABLE calles700mrd_multi
+    ALTER COLUMN the_geom
+    TYPE Geometry(LINESTRING, 6362)
+    USING ST_Transform(the_geom, 6362);
+
+--- nueva topología	
+
+alter table calles700mrd_multi drop column source;
+alter table calles700mrd_multi add column source integer;
+
+alter table  calles700mrd_multi drop column target;
+alter table  calles700mrd_multi add column target integer;
+
+select pgr_createTopology ('calles700mrd_multi', 0.01, 'the_geom', 'id');
